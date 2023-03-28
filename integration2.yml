@@ -1,0 +1,39 @@
+name: Continuous integration
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deployment:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      - name: Checkout main branch
+        run: ln -s $GITHUB_WORKSPACE ~/${GITHUB_REPOSITORY#*/}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v1
+        with:
+          node-version: "16.x"
+
+      - name: Install dependencies
+        run: npm install
+       
+      - name: Build dependencies
+        run: npm rebuild
+
+      - name: Adding the environment variables
+        run: |
+          touch .env
+          echo "$secrets" | jq -r 'keys[] as $k | "\($k)=\(.[$k])"' >> .env
+          cat .env
+        env:
+          secrets: ${{ toJson(secrets) }}
+
+      - name: Start server application
+        run: pm2 start npm --name "${GITHUB_REPOSITORY#*/}" -- start 
+        
+      - name: Save
+        run: pm2 save
